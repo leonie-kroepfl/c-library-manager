@@ -21,13 +21,19 @@
 #define ERROR_MESSAGE_FILE_ERROR "Invalid file submitted!\n"
 #define RETURN_CODE_OUT_OF_MEMORY 1 
 #define ERROR_MESSAGE_OUT_OF_MEMORY "Out of memory!\n"
-#define RETURN_CODE_QUIT 
 #define BUFFER_SIZE 256 
 #define BOOK_DETAILS 6
 
+#define PRINT_COMMAND "print"
+#define ADD_COMMAND "add" 
+#define REMOVE_COMMAND "remove"
+#define SORT_COMMAND "sort"
+#define SAVE_COMMAND "save"
+#define QUIT_COMMAND "quit"
+
 typedef char* String; 
 
-typedef enum SortingCode_
+typedef enum _SortingCode_
 {
   TITLE,
   AUTHOR, 
@@ -38,7 +44,7 @@ typedef enum SortingCode_
   NONE, 
 } SortingCode;
 
-typedef struct Book_
+typedef struct _Book_
 {
   int book_id_;
   int library_location_; 
@@ -50,7 +56,7 @@ typedef struct Book_
   String cover_color_; 
 } Book;
 
-typedef struct Library_
+typedef struct _Library_
 {
   Book **library_books_ptr_;
   int amount_of_books_; 
@@ -70,6 +76,10 @@ String saveLibraryInformation(char *current_line);
 bool saveBookInformation(Library* library, String tmp_string, int information_count, int book_index); 
 bool coordinateBookInformation(Library* library, char *current_line, int book_index); 
 bool fillLibraryArray(FILE* file_ptr, Library* library); 
+void printCommandList(void); 
+bool executeValidInput(Library* library); 
+String getValidInput(void); 
+void commandPrint(Library* library);
 
 
 //------------------------------------------------------------------------------
@@ -109,7 +119,6 @@ int main(int argc, char** argv)
   if(allocateLibraryBooks(library) == NULL)
   {
     fclose(file_ptr);
-    // library->library_books_ptr_ = NULL; 
     free(library); 
     library = NULL; 
     return RETURN_CODE_OUT_OF_MEMORY; 
@@ -124,20 +133,20 @@ int main(int argc, char** argv)
     return RETURN_CODE_OUT_OF_MEMORY; 
   }
 
-  // welcome 
+  printf("\nWelcome to the ISP Library Manager!\n"); 
+  int quit_command = false; 
 
-  printf("%s\n", library->library_owner_);
-  printf("%d\n", library->amount_of_books_);
-  printf("%s\n", library->sorting_criteria_);
-  printf("%d\n", library->library_books_ptr_[0]->book_id_); 
-  printf("%d\n", library->library_books_ptr_[0]->library_location_); 
-  printf("%s\n", library->library_books_ptr_[0]->title_); 
-  printf("%s\n", library->library_books_ptr_[0]->author_); 
-  printf("%s\n", library->library_books_ptr_[0]->ISBN_number_); 
-  printf("%d\n", library->library_books_ptr_[0]->page_count_); 
-  printf("%d\n", library->library_books_ptr_[0]->published_year_); 
-  printf("%s\n", library->library_books_ptr_[0]->cover_color_); 
+  do 
+  {
+    printCommandList(); 
 
+    if(!executeValidInput(library))
+    {
+      printf("Thank you for using ISP Library Manager! See you later!\n\n"); 
+      quit_command = true; 
+    }
+
+  } while (!quit_command);
 
   fclose(file_ptr);
   freeAllocatedMemoryInLibrary(library);
@@ -471,5 +480,145 @@ bool fillLibraryArray(FILE* file_ptr, Library* library)
   return true; 
 } 
 
+//------------------------------------------------------------------------------
+/// @brief This function prints the command list. 
+void printCommandList(void)
+{
+  printf("\n"); 
+  printf("Choose a command:\n");
+  printf(" %s: %s out books list\n", PRINT_COMMAND, PRINT_COMMAND);
+  printf(" %s: %s a book to the list\n", ADD_COMMAND, ADD_COMMAND);
+  printf(" %s: %s a book from the kist\n", REMOVE_COMMAND, REMOVE_COMMAND);
+  printf(" %s: %s books in the list according to the chosen criteria\n", SORT_COMMAND, SORT_COMMAND);
+  printf(" %s: %s progress to a file\n", SAVE_COMMAND, SAVE_COMMAND);
+  printf(" %s: close the session\n", QUIT_COMMAND);
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function asks the user for input. 
+/// @return NULL or the correct address 
+String getValidInput(void) 
+{
+  printf("\n"); 
+  printf(" > "); 
+  fflush(stdout);
+  char tmp_input[BUFFER_SIZE]; 
+  fgets(tmp_input, BUFFER_SIZE, stdin); 
+  printf("\n"); 
+
+  if(strchr(tmp_input, '\n') == NULL) 
+  {
+    int lost_input; 
+
+    while((lost_input = getchar()) != '\n' && lost_input != EOF)
+    {
+      continue;
+    }
+  }
+
+  String newline_ptr = strchr(tmp_input, '\n'); 
+
+  if(newline_ptr != NULL)
+  {
+    int newline_position = newline_ptr - tmp_input; 
+    tmp_input[newline_position] = '\0'; 
+  }
+
+  String input = calloc(strlen(tmp_input) + 1, sizeof(char));
+  
+  if(input == NULL)
+  {
+    return NULL; 
+  }
+
+  strcpy(input, tmp_input); 
+  return input; 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function handels the user input. 
+/// @param library is the pointer to the library 
+/// @return boolen if it was executed correctly or quitted 
+bool executeValidInput(Library* library) 
+{
+  bool valid_input = false; 
+  String input; 
+
+  do
+  {
+    input = getValidInput(); 
+    if(input == NULL)
+    {
+      printf("%s", ERROR_MESSAGE_OUT_OF_MEMORY);
+      return RETURN_CODE_OUT_OF_MEMORY; 
+    }
+
+    if(strcmp(input, PRINT_COMMAND) == 0)
+    {
+      commandPrint(library); 
+      valid_input = true; 
+    }
+    else if(strcmp(input, ADD_COMMAND) == 0)
+    {
+      valid_input = true; 
+    }
+    else if(strcmp(input, REMOVE_COMMAND) == 0)
+    {
+      valid_input = true; 
+    }
+    else if(strcmp(input, SORT_COMMAND) == 0)
+    {
+      valid_input = true; 
+    }
+    else if(strcmp(input, SAVE_COMMAND) == 0)
+    {
+      valid_input = true; 
+    }
+    else if(strcmp(input, QUIT_COMMAND) == 0)
+    {
+      free(input);
+      input = NULL;
+      return false; 
+    }
+    else 
+    {
+      printf("Unkown command!\n"); 
+      continue;
+    }
+  } while(!valid_input); 
+
+  free(input);
+  input = NULL;
+  return true; 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function prints the library. 
+/// @param library is the pointer to the library 
+void commandPrint(Library* library)
+{
+  if(library->amount_of_books_ == 0)
+  {
+    printf("Library is empty!\n"); 
+    return; 
+  }
+  else
+  {
+    printf("Library of %s", library->library_owner_);
+    printf(" has %d books", library->amount_of_books_); 
+    printf(" sorted by %s:\n", library->sorting_criteria_); 
+  }
+
+  for(int library_index = 0; library_index < library->amount_of_books_; library_index++)
+  {
+    printf("%d) ", library->library_books_ptr_[library_index]->book_id_); 
+    printf("%s - ", library->library_books_ptr_[library_index]->title_); 
+    printf("%s - ", library->library_books_ptr_[library_index]->author_); 
+    printf("%s - ", library->library_books_ptr_[library_index]->ISBN_number_); 
+    printf("%d - ", library->library_books_ptr_[library_index]->page_count_); 
+    printf("%d - ", library->library_books_ptr_[library_index]->published_year_); 
+    printf("%s\n", library->library_books_ptr_[library_index]->cover_color_); 
+  }
+}
 
 
