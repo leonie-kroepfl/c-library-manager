@@ -92,7 +92,6 @@ int main(int argc, char** argv)
   FILE* file_ptr = openFile(argv[1]); 
   if(file_ptr == NULL)
   {
-    fclose(file_ptr);
     return RETURN_CODE_FILE_ERROR; 
   }
 
@@ -110,7 +109,7 @@ int main(int argc, char** argv)
   if(allocateLibraryBooks(file_ptr, library) == NULL)
   {
     fclose(file_ptr);
-    library->library_books_ptr_ = NULL;
+    // library->library_books_ptr_ = NULL; 
     free(library); 
     library = NULL; 
     return RETURN_CODE_OUT_OF_MEMORY; 
@@ -153,7 +152,7 @@ bool checkArgumentCount(int argc)
 /// @return boolen if it is a valid format or not 
 bool checkFileFormat(char *file_name) 
 {
-  if(strchr(file_name, '.txt') == NULL)
+  if(strstr(file_name, ".txt") == NULL) 
   {
     printf("%s", ERROR_MESSAGE_FILE_FORMAT_ERROR);
     return false; 
@@ -186,7 +185,7 @@ bool checkFileStructure(FILE* file_ptr)
   char magic_number[BUFFER_SIZE]; 
   fgets(magic_number, sizeof(magic_number), file_ptr); 
 
-  if(strcmp(magic_number, "LIBRARY\n"))
+  if(strcmp(magic_number, "LIBRARY\n") == 0)
   {
     return true; 
   }
@@ -201,6 +200,7 @@ bool checkFileStructure(FILE* file_ptr)
 /// @param library is the pointer to the library 
 void getAmount(FILE* file_ptr, Library* library)
 {
+  rewind(file_ptr); 
   char line[BUFFER_SIZE]; 
   int line_index = 0; 
 
@@ -220,7 +220,7 @@ void getAmount(FILE* file_ptr, Library* library)
 String allocateStringArray(int length_of_array)
 {
   String tmp_ptr; 
-  tmp_ptr = calloc(length_of_array, sizeof(char)); 
+  tmp_ptr = calloc(length_of_array + 1, sizeof(char)); 
 
   if(tmp_ptr == NULL)
   {
@@ -239,7 +239,7 @@ Book** allocateLibraryBooks(FILE* file_ptr, Library* library)
 {
   Book **tmp_ptr;
   int number_of_books = library->amount_of_books_; 
-  tmp_ptr = calloc(number_of_books, sizeof(String));
+  tmp_ptr = calloc(number_of_books, sizeof(Book)); 
 
   if(tmp_ptr == NULL)
   {
@@ -249,16 +249,16 @@ Book** allocateLibraryBooks(FILE* file_ptr, Library* library)
 
   library->library_books_ptr_ = tmp_ptr; 
 
-  for(int book_index = 0; book_index < number_of_books; book_index++)
-  {
-    library->library_books_ptr_[book_index] = calloc(1, sizeof(Book)); 
+  // for(int book_index = 0; book_index < number_of_books; book_index++)
+  // {
+  //   library->library_books_ptr_[book_index] = calloc(1, sizeof(Book)); 
 
-    if(library->library_books_ptr_[book_index] == NULL)
-    {
-      freeAllocatedMemoryInLibrary(library); 
-      return NULL; 
-    }
-  }
+  //   if(library->library_books_ptr_[book_index] == NULL)
+  //   {
+  //     freeAllocatedMemoryInLibrary(library); 
+  //     return NULL; 
+  //   }
+  // }
 
   return library->library_books_ptr_; 
 }
@@ -311,7 +311,7 @@ String saveLibraryInformation(Library* library, char *current_line)
     position_index++; 
   }
 
-  information[length_of_information] = '\0'; 
+  information[length_of_information + 1] = '\0'; 
   return information; 
 }
 
@@ -380,16 +380,17 @@ bool coordinateBookInformation(Library* library, char *current_line, int book_in
 
   while(current_line[string_index] != '\n')
   {
-    String tmp_string; 
+    char tmp_string[BUFFER_SIZE]; 
+    int tmp_string_index = 0; 
 
-    for(int tmp_string_index = 0; current_line[string_index] != ',' || current_line[string_index] != '\n'; 
+    for(tmp_string_index = 0; current_line[string_index] != ',' && current_line[string_index] != '\n'; 
     tmp_string_index++)
     {
       tmp_string[tmp_string_index] = current_line[string_index]; 
       string_index++; 
     }
 
-    tmp_string[(int)strlen(tmp_string)] = '\0'; 
+    tmp_string[tmp_string_index + 1] = '\0'; 
     if(!saveBookInformation(library, tmp_string, information_count, book_index))
     {
       return false;
@@ -406,6 +407,7 @@ bool coordinateBookInformation(Library* library, char *current_line, int book_in
 /// @return boolen if it was saved correctly 
 bool fillLibraryArray(FILE* file_ptr, Library* library)
 {
+  rewind(file_ptr); 
   int number_of_lines = library->amount_of_books_ + 3; 
 
   for(int line_index = 0; line_index < number_of_lines; line_index++)
