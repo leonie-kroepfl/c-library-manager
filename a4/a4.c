@@ -64,9 +64,9 @@ FILE* openFile(char *file_name);
 bool checkFileStructure(FILE* file_ptr); 
 void getAmount(FILE* file_ptr, Library* library);
 String allocateStringArray(int length_of_array); 
-Book** allocateLibraryBooks(FILE* file_ptr, Library* library); 
+Book** allocateLibraryBooks(Library* library); 
 void freeAllocatedMemoryInLibrary(Library* library);
-String saveLibraryInformation(Library* library, char *current_line); 
+String saveLibraryInformation(char *current_line); 
 bool saveBookInformation(Library* library, String tmp_string, int information_count, int book_index); 
 bool coordinateBookInformation(Library* library, char *current_line, int book_index); 
 bool fillLibraryArray(FILE* file_ptr, Library* library); 
@@ -106,7 +106,7 @@ int main(int argc, char** argv)
 
   getAmount(file_ptr, library); 
 
-  if(allocateLibraryBooks(file_ptr, library) == NULL)
+  if(allocateLibraryBooks(library) == NULL)
   {
     fclose(file_ptr);
     // library->library_books_ptr_ = NULL; 
@@ -126,9 +126,23 @@ int main(int argc, char** argv)
 
   // welcome 
 
+  printf("%s\n", library->library_owner_);
+  printf("%d\n", library->amount_of_books_);
+  printf("%s\n", library->sorting_criteria_);
+  printf("%d\n", library->library_books_ptr_[0]->book_id_); 
+  printf("%d\n", library->library_books_ptr_[0]->library_location_); 
+  printf("%s\n", library->library_books_ptr_[0]->title_); 
+  printf("%s\n", library->library_books_ptr_[0]->author_); 
+  printf("%s\n", library->library_books_ptr_[0]->ISBN_number_); 
+  printf("%d\n", library->library_books_ptr_[0]->page_count_); 
+  printf("%d\n", library->library_books_ptr_[0]->published_year_); 
+  printf("%s\n", library->library_books_ptr_[0]->cover_color_); 
 
 
-
+  fclose(file_ptr);
+  freeAllocatedMemoryInLibrary(library);
+  free(library); 
+  library = NULL; 
   return 0; 
 }
 
@@ -235,11 +249,11 @@ String allocateStringArray(int length_of_array)
 /// @param file_ptr is the pointer to the open file 
 /// @param library is the pointer to the library 
 /// @return NULL or the correct address 
-Book** allocateLibraryBooks(FILE* file_ptr, Library* library)
+Book** allocateLibraryBooks(Library* library)
 {
   Book **tmp_ptr;
   int number_of_books = library->amount_of_books_; 
-  tmp_ptr = calloc(number_of_books, sizeof(Book)); 
+  tmp_ptr = calloc(number_of_books, sizeof(char*)); // Books * 
 
   if(tmp_ptr == NULL)
   {
@@ -249,16 +263,16 @@ Book** allocateLibraryBooks(FILE* file_ptr, Library* library)
 
   library->library_books_ptr_ = tmp_ptr; 
 
-  // for(int book_index = 0; book_index < number_of_books; book_index++)
-  // {
-  //   library->library_books_ptr_[book_index] = calloc(1, sizeof(Book)); 
+  for(int book_index = 0; book_index < number_of_books; book_index++)
+  {
+    library->library_books_ptr_[book_index] = calloc(1, sizeof(Book)); 
 
-  //   if(library->library_books_ptr_[book_index] == NULL)
-  //   {
-  //     freeAllocatedMemoryInLibrary(library); 
-  //     return NULL; 
-  //   }
-  // }
+    if(library->library_books_ptr_[book_index] == NULL)
+    {
+      freeAllocatedMemoryInLibrary(library); 
+      return NULL; 
+    }
+  }
 
   return library->library_books_ptr_; 
 }
@@ -276,6 +290,9 @@ void freeAllocatedMemoryInLibrary(Library* library)
     free(library->library_books_ptr_[book_index]->cover_color_); 
     free(library->library_books_ptr_[book_index]); 
   }
+  
+  free(library->library_owner_);
+  free(library->sorting_criteria_);
   free(library->library_books_ptr_); 
   library->library_books_ptr_ = NULL; 
 }
@@ -285,10 +302,10 @@ void freeAllocatedMemoryInLibrary(Library* library)
 /// @param library is the pointer to the library 
 /// @param current_line is the current line with the information in it 
 /// @return NULL or the correct address 
-String saveLibraryInformation(Library* library, char *current_line)
+String saveLibraryInformation(char *current_line)
 {
   String information; 
-  String position_ptr = strchr(current_line, ' '); 
+  String position_ptr = strchr(current_line, ':'); 
 
   if(position_ptr == NULL)
   {
@@ -296,7 +313,7 @@ String saveLibraryInformation(Library* library, char *current_line)
     return NULL;
   }
 
-  int position_index = (position_ptr - current_line) + 1; 
+  int position_index = (position_ptr - current_line) + 2; 
   int length_of_information = strlen(current_line) - position_index + 1; 
   information = allocateStringArray(length_of_information); 
   
@@ -311,7 +328,7 @@ String saveLibraryInformation(Library* library, char *current_line)
     position_index++; 
   }
 
-  information[length_of_information + 1] = '\0'; 
+  information[length_of_information] = '\0'; 
   return information; 
 }
 
@@ -325,33 +342,35 @@ String saveLibraryInformation(Library* library, char *current_line)
 bool saveBookInformation(Library* library, String information, int information_count, int book_index)
 {
   int length_of_information = (int)strlen(information); 
-  String tmp_string; 
+  String tmp_string = allocateStringArray(length_of_information); 
+  if(tmp_string == NULL)
+  {
+    return false; 
+  }
 
   switch (information_count) 
   {
     case TITLE: 
-      tmp_string = allocateStringArray(length_of_information); 
       library->library_books_ptr_[book_index]->title_ = tmp_string; 
       strcpy(library->library_books_ptr_[book_index]->title_, information); 
       break;
     case AUTHOR: 
-      tmp_string = allocateStringArray(length_of_information); 
       library->library_books_ptr_[book_index]->author_ = tmp_string; 
       strcpy(library->library_books_ptr_[book_index]->author_, information); 
       break;
     case ISBN: 
-      tmp_string = allocateStringArray(length_of_information); 
       library->library_books_ptr_[book_index]->ISBN_number_ = tmp_string; 
       strcpy(library->library_books_ptr_[book_index]->ISBN_number_, information); 
       break;
     case PAGES: 
+      free(tmp_string); 
       library->library_books_ptr_[book_index]->page_count_ = atoi(information); 
       break;
-    case YEAR:
+    case YEAR: 
+      free(tmp_string); 
       library->library_books_ptr_[book_index]->published_year_= atoi(information); 
       break;
     case COLOR:
-      tmp_string = allocateStringArray(length_of_information); 
       library->library_books_ptr_[book_index]->cover_color_ = tmp_string; 
       strcpy(library->library_books_ptr_[book_index]->cover_color_, information); 
       break;
@@ -359,11 +378,7 @@ bool saveBookInformation(Library* library, String information, int information_c
       return false;
       break;
   }
-
-  if(tmp_string == NULL)
-  {
-    return false; 
-  }
+  
   return true; 
 }
 
@@ -377,6 +392,8 @@ bool coordinateBookInformation(Library* library, char *current_line, int book_in
 {
   int information_count = 0; 
   int string_index = 0; 
+  library->library_books_ptr_[book_index]->book_id_= book_index + 1; 
+  library->library_books_ptr_[book_index]->library_location_= book_index; 
 
   while(current_line[string_index] != '\n')
   {
@@ -389,8 +406,14 @@ bool coordinateBookInformation(Library* library, char *current_line, int book_in
       tmp_string[tmp_string_index] = current_line[string_index]; 
       string_index++; 
     }
+    
+    if(current_line[string_index] == ',') 
+    {
+      string_index += 2; 
+    }
 
-    tmp_string[tmp_string_index + 1] = '\0'; 
+    tmp_string[tmp_string_index] = '\0'; 
+
     if(!saveBookInformation(library, tmp_string, information_count, book_index))
     {
       return false;
@@ -409,19 +432,19 @@ bool fillLibraryArray(FILE* file_ptr, Library* library)
 {
   rewind(file_ptr); 
   int number_of_lines = library->amount_of_books_ + 3; 
+  int book_index = 0; 
 
   for(int line_index = 0; line_index < number_of_lines; line_index++)
   {
     char current_line[BUFFER_SIZE]; 
     fgets(current_line, sizeof(current_line), file_ptr); 
-    int length_of_current_line = strlen(current_line) + 1; 
     
     switch (line_index) 
     {
       case 0:
         break; 
       case 1:
-        library->library_owner_ = saveLibraryInformation(library, current_line); 
+        library->library_owner_ = saveLibraryInformation(current_line); 
         
         if(library->library_owner_ == NULL)
         {
@@ -429,7 +452,7 @@ bool fillLibraryArray(FILE* file_ptr, Library* library)
         }
         break;
       case 2:
-        library->sorting_criteria_ = saveLibraryInformation(library, current_line); 
+        library->sorting_criteria_ = saveLibraryInformation(current_line); 
         
         if(library->sorting_criteria_ == NULL)
         {
@@ -437,10 +460,11 @@ bool fillLibraryArray(FILE* file_ptr, Library* library)
         }
         break;
       default:
-        if(!coordinateBookInformation(library, current_line, line_index))
+        if(!coordinateBookInformation(library, current_line, book_index))
         {
           return false;
         } 
+        book_index++; 
         break; 
     }
   }
