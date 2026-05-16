@@ -233,7 +233,7 @@ void getAmount(FILE* file_ptr, Library* library)
   }
 
   line_index -= 3; 
-  library->amount_of_books_ = line_index + 1; 
+  library->amount_of_books_ = line_index; 
 }
 
 //------------------------------------------------------------------------------
@@ -488,7 +488,7 @@ void printCommandList(void)
   printf("Choose a command:\n");
   printf(" %s: %s out books list\n", PRINT_COMMAND, PRINT_COMMAND);
   printf(" %s: %s a book to the list\n", ADD_COMMAND, ADD_COMMAND);
-  printf(" %s: %s a book from the kist\n", REMOVE_COMMAND, REMOVE_COMMAND);
+  printf(" %s: %s a book from the list\n", REMOVE_COMMAND, REMOVE_COMMAND);
   printf(" %s: %s books in the list according to the chosen criteria\n", SORT_COMMAND, SORT_COMMAND);
   printf(" %s: %s progress to a file\n", SAVE_COMMAND, SAVE_COMMAND);
   printf(" %s: close the session\n", QUIT_COMMAND);
@@ -503,7 +503,11 @@ String getValidInput(void)
   printf(" > "); 
   fflush(stdout);
   char tmp_input[BUFFER_SIZE]; 
-  fgets(tmp_input, BUFFER_SIZE, stdin); 
+  if(fgets(tmp_input, BUFFER_SIZE, stdin) == NULL)
+  {
+    return NULL; 
+  } 
+
   printf("\n"); 
 
   if(strchr(tmp_input, '\n') == NULL) 
@@ -549,30 +553,24 @@ bool executeValidInput(Library* library)
     input = getValidInput(); 
     if(input == NULL)
     {
-      printf("%s", ERROR_MESSAGE_OUT_OF_MEMORY);
-      return RETURN_CODE_OUT_OF_MEMORY; 
+      return false; 
     }
 
     if(strcmp(input, PRINT_COMMAND) == 0)
     {
       commandPrint(library); 
-      valid_input = true; 
     }
     else if(strcmp(input, ADD_COMMAND) == 0)
     {
-      valid_input = true; 
     }
     else if(strcmp(input, REMOVE_COMMAND) == 0)
     {
-      valid_input = true; 
     }
     else if(strcmp(input, SORT_COMMAND) == 0)
     {
-      valid_input = true; 
     }
     else if(strcmp(input, SAVE_COMMAND) == 0)
     {
-      valid_input = true; 
     }
     else if(strcmp(input, QUIT_COMMAND) == 0)
     {
@@ -582,9 +580,11 @@ bool executeValidInput(Library* library)
     }
     else 
     {
-      printf("Unkown command!\n"); 
-      continue;
+      printf("Unknown command!\n"); 
     }
+
+    free(input);
+    input = NULL;
   } while(!valid_input); 
 
   free(input);
