@@ -21,6 +21,8 @@
 #define ERROR_MESSAGE_FILE_ERROR "Invalid file submitted!\n"
 #define RETURN_CODE_OUT_OF_MEMORY 1 
 #define ERROR_MESSAGE_OUT_OF_MEMORY "Out of memory!\n"
+#define ERROR_MESSAGE_LIBRARY_IS_EMPTY "Library is empty!\n" 
+#define ERROR_MESSAGE_UNKNOWN_COMAND "Unknown command!\n" 
 #define BUFFER_SIZE 256 
 #define BOOK_DETAILS 6
 
@@ -79,7 +81,12 @@ bool fillLibraryArray(FILE* file_ptr, Library* library);
 void printCommandList(void); 
 bool executeValidInput(Library* library); 
 String getValidInput(void); 
+bool checkLibraryForBooks(Library* library); 
 void commandPrint(Library* library);
+void commandAdd(Library* library); 
+Book** reallocateLibraryBooks(Library* library, int new_amount); 
+void commandRemove(Library* library);
+void moveBooksBeforeRemoving(Library* library, int book_to_remove); 
 
 
 //------------------------------------------------------------------------------
@@ -255,14 +262,13 @@ String allocateStringArray(int length_of_array)
 
 //------------------------------------------------------------------------------
 /// @brief This function allocates the right amount of memory for the books. 
-/// @param file_ptr is the pointer to the open file 
 /// @param library is the pointer to the library 
 /// @return NULL or the correct address 
 Book** allocateLibraryBooks(Library* library)
 {
   Book **tmp_ptr;
   int number_of_books = library->amount_of_books_; 
-  tmp_ptr = calloc(number_of_books, sizeof(char*)); // Books * 
+  tmp_ptr = calloc(number_of_books, sizeof(Book*));  
 
   if(tmp_ptr == NULL)
   {
@@ -308,7 +314,6 @@ void freeAllocatedMemoryInLibrary(Library* library)
 
 //------------------------------------------------------------------------------
 /// @brief This function finds the right information of a string and saves it. 
-/// @param library is the pointer to the library 
 /// @param current_line is the current line with the information in it 
 /// @return NULL or the correct address 
 String saveLibraryInformation(char *current_line)
@@ -551,6 +556,7 @@ bool executeValidInput(Library* library)
   do
   {
     input = getValidInput(); 
+
     if(input == NULL)
     {
       return false; 
@@ -558,19 +564,35 @@ bool executeValidInput(Library* library)
 
     if(strcmp(input, PRINT_COMMAND) == 0)
     {
-      commandPrint(library); 
+      if(checkLibraryForBooks(library))
+      {
+        commandPrint(library); 
+      }
     }
     else if(strcmp(input, ADD_COMMAND) == 0)
     {
+      commandAdd(library); 
     }
     else if(strcmp(input, REMOVE_COMMAND) == 0)
     {
+      if(checkLibraryForBooks(library))
+      {
+        commandRemove(library); 
+      }
     }
     else if(strcmp(input, SORT_COMMAND) == 0)
     {
+      if(checkLibraryForBooks(library))
+      {
+        
+      }
     }
     else if(strcmp(input, SAVE_COMMAND) == 0)
     {
+      if(checkLibraryForBooks(library))
+      {
+        
+      }
     }
     else if(strcmp(input, QUIT_COMMAND) == 0)
     {
@@ -580,15 +602,27 @@ bool executeValidInput(Library* library)
     }
     else 
     {
-      printf("Unknown command!\n"); 
+      printf("%s", ERROR_MESSAGE_UNKNOWN_COMAND); 
     }
 
     free(input);
     input = NULL;
   } while(!valid_input); 
+  return true; 
+}
 
-  free(input);
-  input = NULL;
+//------------------------------------------------------------------------------
+/// @brief This function checks if the library is empty. 
+/// @param library is the pointer to the library 
+/// @return boolen if it is empty or not 
+bool checkLibraryForBooks(Library* library)
+{
+  if(library->amount_of_books_ == 0)
+  {
+    printf("%s", ERROR_MESSAGE_LIBRARY_IS_EMPTY); 
+    return false; 
+  }
+
   return true; 
 }
 
@@ -597,17 +631,15 @@ bool executeValidInput(Library* library)
 /// @param library is the pointer to the library 
 void commandPrint(Library* library)
 {
-  if(library->amount_of_books_ == 0)
+  printf("Library of %s", library->library_owner_);
+  printf(" has %d books", library->amount_of_books_); 
+
+  if(strcmp(library->sorting_criteria_, "none") != 0)
   {
-    printf("Library is empty!\n"); 
-    return; 
+    printf(" sorted by %s", library->sorting_criteria_); 
   }
-  else
-  {
-    printf("Library of %s", library->library_owner_);
-    printf(" has %d books", library->amount_of_books_); 
-    printf(" sorted by %s:\n", library->sorting_criteria_); 
-  }
+
+  printf(":\n"); 
 
   for(int library_index = 0; library_index < library->amount_of_books_; library_index++)
   {
@@ -620,5 +652,167 @@ void commandPrint(Library* library)
     printf("%s\n", library->library_books_ptr_[library_index]->cover_color_); 
   }
 }
+
+//------------------------------------------------------------------------------
+/// @brief This function expands the library for a new book. 
+/// @param library is the pointer to the library 
+void commandAdd(Library* library)
+{
+  printf("Enter book data (Title, author, ISBN, number of pages, year of publishing, cover color):\n");
+  fflush(stdout);
+  printf(" > "); 
+  fflush(stdout);
+  char book_to_add[BUFFER_SIZE]; 
+  fgets(book_to_add, BUFFER_SIZE, stdin); 
+  printf("\n"); 
+  int new_amount_of_books = library->amount_of_books_ + 1; 
+
+  Book** bigger_library_books_ptr = reallocateLibraryBooks(library, new_amount_of_books); 
+
+  if(bigger_library_books_ptr == NULL)
+  {
+    return; 
+  }
+
+  library->library_books_ptr_ = bigger_library_books_ptr; 
+
+  if(!coordinateBookInformation(library, book_to_add, new_amount_of_books - 1))
+  {
+    return; 
+  }
+
+  library->amount_of_books_++; 
+  strcpy(library->sorting_criteria_, "none"); 
+  printf("Book added successfully!\n"); 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function reallocates the right amount of memory for the books. 
+/// @param library is the pointer to the library 
+/// @param new_amount is the new amount of books in the library 
+/// @return NULL or the correct address 
+Book** reallocateLibraryBooks(Library* library, int new_amount)
+{
+  if(new_amount < library->amount_of_books_)
+  {
+    free(library->library_books_ptr_[new_amount]->title_);
+    free(library->library_books_ptr_[new_amount]->author_);
+    free(library->library_books_ptr_[new_amount]->ISBN_number_);
+    free(library->library_books_ptr_[new_amount]->cover_color_);
+    free(library->library_books_ptr_[new_amount]);
+    library->library_books_ptr_[new_amount] = NULL; 
+  }
+
+  Book **bigger_library_books_ptr; 
+
+  if(new_amount == 0)
+  {
+    bigger_library_books_ptr = realloc(library->library_books_ptr_, sizeof(Book*));
+    bigger_library_books_ptr[new_amount]= NULL; 
+  }
+  else
+  {
+    bigger_library_books_ptr = realloc(library->library_books_ptr_, new_amount * sizeof(Book*));
+  }
+  
+  if(bigger_library_books_ptr == NULL && new_amount > 0)
+  {
+    printf("%s", ERROR_MESSAGE_OUT_OF_MEMORY);
+
+    return NULL; 
+  }
+
+  if(new_amount > library->amount_of_books_)
+  {
+    Book* new_book_ptr = calloc(1, sizeof(Book)); 
+
+    if(new_book_ptr == NULL)
+    {
+      return NULL; 
+    }
+
+    bigger_library_books_ptr[new_amount - 1] = new_book_ptr; 
+  }
+
+  return bigger_library_books_ptr; 
+} 
+
+//------------------------------------------------------------------------------
+/// @brief This function removes a book from the library. 
+/// @param library is the pointer to the library 
+void commandRemove(Library* library)
+{
+  int book_to_remove = 0; 
+
+  do
+  {
+    commandPrint(library); 
+    printf("\n"); 
+    printf("Enter the number of the book in the list to remove:\n");
+    fflush(stdout); 
+    printf(" > "); 
+    fflush(stdout);
+
+    if(scanf("%d", &book_to_remove) != 1) 
+    {
+      printf("Invalid book number! Try again!\n"); 
+    }
+    
+    int lost_input; 
+    while((lost_input = getchar()) != '\n')
+    {
+      continue;
+    }
+
+    printf("\n"); 
+
+    if(book_to_remove >= 1 && book_to_remove <= library->amount_of_books_)
+    {
+      break;
+    }
+  } while(1); 
+
+  moveBooksBeforeRemoving(library, book_to_remove); 
+  int new_amount_of_books = library->amount_of_books_ - 1; 
+  Book** bigger_library_books_ptr = reallocateLibraryBooks(library, new_amount_of_books); 
+
+  if(bigger_library_books_ptr == NULL && new_amount_of_books > 0)
+  {
+    return; 
+  }
+
+  library->library_books_ptr_ = bigger_library_books_ptr; 
+  library->amount_of_books_--; 
+  printf("Book #%d removed successfully.\n", book_to_remove); 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function moves the book which should be removed from the library to the end. 
+/// @param library is the pointer to the library 
+/// @param book_to_remove is the number of the book which should be removed 
+void moveBooksBeforeRemoving(Library* library, int book_to_remove)
+{
+  int book_to_remove_index = book_to_remove - 1; 
+  int amount_of_books = library->amount_of_books_; 
+
+  for(int book_index  = 0; book_index < amount_of_books; book_index++)
+  {
+    if(book_index == book_to_remove_index)
+    {
+      Book* tmp_book_ptr = library->library_books_ptr_[book_to_remove_index];
+
+      for(int tmp_book_index = book_to_remove_index; tmp_book_index < amount_of_books - 1; tmp_book_index++)
+      {
+        library->library_books_ptr_[tmp_book_index] = library->library_books_ptr_[tmp_book_index + 1]; 
+        library->library_books_ptr_[tmp_book_index]->book_id_--; 
+      }
+
+      library->library_books_ptr_[amount_of_books - 1] = tmp_book_ptr; 
+      library->library_books_ptr_[amount_of_books - 1]->book_id_ = amount_of_books - 1; 
+    }
+  }
+}
+
+
 
 
