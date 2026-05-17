@@ -68,7 +68,7 @@ typedef struct _Library_
 
 bool checkArgumentCount(int argc); 
 bool checkFileFormat(char *file_name); 
-FILE* openFile(char *file_name); 
+FILE* openFileToRead(char *file_name); 
 bool checkFileStructure(FILE* file_ptr); 
 void getAmount(FILE* file_ptr, Library* library);
 String allocateStringArray(int length_of_array); 
@@ -87,7 +87,9 @@ void commandAdd(Library* library);
 Book** reallocateLibraryBooks(Library* library, int new_amount); 
 void commandRemove(Library* library);
 void moveBooksBeforeRemoving(Library* library, int book_to_remove); 
-
+FILE* openFileToWrite(Library* library); 
+void commandSave(Library* library); 
+void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr); 
 
 //------------------------------------------------------------------------------
 /// @brief This function handels the whole program.  
@@ -106,7 +108,7 @@ int main(int argc, char** argv)
     return RETURN_CODE_FILE_FORMAT_ERROR; 
   }
 
-  FILE* file_ptr = openFile(argv[1]); 
+  FILE* file_ptr = openFileToRead(argv[1]); 
   if(file_ptr == NULL)
   {
     return RETURN_CODE_FILE_ERROR; 
@@ -194,7 +196,7 @@ bool checkFileFormat(char *file_name)
 /// @brief This function opens the file wih the file name from the command line. 
 /// @param file_name is the given file name from argv[1]
 /// @return the file pointer or NULL if here is an error 
-FILE* openFile(char *file_name)
+FILE* openFileToRead(char *file_name)
 {
   FILE* file_ptr = fopen(file_name, "r");
 
@@ -591,7 +593,7 @@ bool executeValidInput(Library* library)
     {
       if(checkLibraryForBooks(library))
       {
-        
+        commandSave(library); 
       }
     }
     else if(strcmp(input, QUIT_COMMAND) == 0)
@@ -810,6 +812,65 @@ void moveBooksBeforeRemoving(Library* library, int book_to_remove)
       library->library_books_ptr_[amount_of_books - 1] = tmp_book_ptr; 
       library->library_books_ptr_[amount_of_books - 1]->book_id_ = amount_of_books - 1; 
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function saves the books from the library to a backup file. 
+/// @param library is the pointer to the library 
+void commandSave(Library* library)
+{
+  FILE* backup_file_ptr = openFileToWrite(library);
+
+  if(backup_file_ptr == NULL)
+  {
+    fclose(backup_file_ptr); 
+    return; 
+  }
+
+  writeLibraryIntoFile(library, backup_file_ptr); 
+  printf("Library successfully saved to library_by_%s.txt.\n", library->sorting_criteria_); 
+  fclose(backup_file_ptr); 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function opens a new backup file. 
+/// @param library is the pointer to the library 
+/// @return the file pointer or NULL if here is an error 
+FILE* openFileToWrite(Library* library)
+{
+  char file_name[BUFFER_SIZE] = ""; 
+  strcat(file_name, "library_by_"); 
+  strcat(file_name, library->sorting_criteria_);
+  strcat(file_name, ".txt");
+  FILE* file_ptr = fopen(file_name, "w");
+
+  if(file_ptr == NULL)
+  {
+    printf("%s", ERROR_MESSAGE_FILE_ERROR); 
+    return NULL; 
+  }
+  return file_ptr; 
+}
+
+//------------------------------------------------------------------------------
+/// @brief This function writes the books from the library into the backup file. 
+/// @param library is the pointer to the library 
+/// @param backup_file_ptr is the file pointer to backup file 
+void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr)
+{
+  fprintf(backup_file_ptr, "LIBRARY\n");
+  fprintf(backup_file_ptr, "Owner: %s\n", library->library_owner_);
+  fprintf(backup_file_ptr, "Sorted by: %s\n", library->sorting_criteria_);
+
+  for(int book_index = 0; book_index < library->amount_of_books_; book_index++)
+  {
+    fprintf(backup_file_ptr, "%s, ", library->library_books_ptr_[book_index]->title_);
+    fprintf(backup_file_ptr, "%s, ", library->library_books_ptr_[book_index]->author_);
+    fprintf(backup_file_ptr, "%s, ", library->library_books_ptr_[book_index]->ISBN_number_);
+    fprintf(backup_file_ptr, "%d, ", library->library_books_ptr_[book_index]->page_count_);
+    fprintf(backup_file_ptr, "%d, ", library->library_books_ptr_[book_index]->published_year_);
+    fprintf(backup_file_ptr, "%s\n", library->library_books_ptr_[book_index]->cover_color_);
   }
 }
 
