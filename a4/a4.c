@@ -33,6 +33,14 @@
 #define SAVE_COMMAND "save"
 #define QUIT_COMMAND "quit"
 
+#define SORT_ISBN "ISBN"
+#define SORT_TITLE "title"
+#define SORT_AUTHOR "author"
+#define SORT_YEAR "year"
+#define SORT_PAGES "pages"
+#define SORT_COLOR "color"
+#define SORT_NONE "none"
+
 typedef char* String; 
 
 typedef enum _SortingCode_
@@ -43,13 +51,11 @@ typedef enum _SortingCode_
   PAGES, 
   YEAR, 
   COLOR, 
-  NONE, 
 } SortingCode;
 
 typedef struct _Book_
 {
-  int book_id_;
-  int library_location_; 
+  int book_index_;
   String title_;
   String author_; 
   String ISBN_number_;
@@ -90,6 +96,11 @@ void moveBooksBeforeRemoving(Library* library, int book_to_remove);
 FILE* openFileToWrite(Library* library); 
 void commandSave(Library* library); 
 void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr); 
+void commandSort(Library* library); 
+bool checkInputedSortingCriteria(Library* library, char* sorting_criteria); 
+void executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria); 
+void sortStrings(Library* library, String first_string, String second_string, int book_index);
+void sortIntegers(Library* library, int first_int, int second_int, int book_index);
 
 //------------------------------------------------------------------------------
 /// @brief This function handels the whole program.  
@@ -331,7 +342,7 @@ String saveLibraryInformation(char *current_line)
 
   int position_index = (position_ptr - current_line) + 2; 
   int length_of_information = strlen(current_line) - position_index + 1; 
-  information = allocateStringArray(length_of_information); 
+  information = allocateStringArray(length_of_information + 1); 
   
   if(information == NULL)
   {
@@ -408,8 +419,7 @@ bool coordinateBookInformation(Library* library, char *current_line, int book_in
 {
   int information_count = 0; 
   int string_index = 0; 
-  library->library_books_ptr_[book_index]->book_id_= book_index + 1; 
-  library->library_books_ptr_[book_index]->library_location_= book_index; 
+  library->library_books_ptr_[book_index]->book_index_= book_index + 1; 
 
   while(current_line[string_index] != '\n')
   {
@@ -586,7 +596,7 @@ bool executeValidInput(Library* library)
     {
       if(checkLibraryForBooks(library))
       {
-        
+        commandSort(library); 
       }
     }
     else if(strcmp(input, SAVE_COMMAND) == 0)
@@ -636,7 +646,7 @@ void commandPrint(Library* library)
   printf("Library of %s", library->library_owner_);
   printf(" has %d books", library->amount_of_books_); 
 
-  if(strcmp(library->sorting_criteria_, "none") != 0)
+  if(strcmp(library->sorting_criteria_, SORT_NONE) != 0)
   {
     printf(" sorted by %s", library->sorting_criteria_); 
   }
@@ -645,7 +655,7 @@ void commandPrint(Library* library)
 
   for(int library_index = 0; library_index < library->amount_of_books_; library_index++)
   {
-    printf("%d) ", library->library_books_ptr_[library_index]->book_id_); 
+    printf("%d) ", library->library_books_ptr_[library_index]->book_index_); 
     printf("%s - ", library->library_books_ptr_[library_index]->title_); 
     printf("%s - ", library->library_books_ptr_[library_index]->author_); 
     printf("%s - ", library->library_books_ptr_[library_index]->ISBN_number_); 
@@ -684,7 +694,7 @@ void commandAdd(Library* library)
   }
 
   library->amount_of_books_++; 
-  strcpy(library->sorting_criteria_, "none"); 
+  strcpy(library->sorting_criteria_, SORT_NONE); 
   printf("Book added successfully!\n"); 
 }
 
@@ -806,11 +816,11 @@ void moveBooksBeforeRemoving(Library* library, int book_to_remove)
       for(int tmp_book_index = book_to_remove_index; tmp_book_index < amount_of_books - 1; tmp_book_index++)
       {
         library->library_books_ptr_[tmp_book_index] = library->library_books_ptr_[tmp_book_index + 1]; 
-        library->library_books_ptr_[tmp_book_index]->book_id_--; 
+        library->library_books_ptr_[tmp_book_index]->book_index_--; 
       }
 
       library->library_books_ptr_[amount_of_books - 1] = tmp_book_ptr; 
-      library->library_books_ptr_[amount_of_books - 1]->book_id_ = amount_of_books - 1; 
+      library->library_books_ptr_[amount_of_books - 1]->book_index_ = amount_of_books - 1; 
     }
   }
 }
@@ -874,6 +884,136 @@ void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr)
   }
 }
 
+//------------------------------------------------------------------------------
+/// @brief This function sorts the books in the library in a specific way. 
+/// @param library is the pointer to the library 
+void commandSort(Library* library)
+{
+  char sorting_criteria[BUFFER_SIZE]; 
 
+  do
+  {
+    printf("Enter sorting criteria (ISBN/title/author/year/pages/color):\n");
+    fflush(stdout);
+    printf(" > "); 
+    fflush(stdout);
+    fgets(sorting_criteria, BUFFER_SIZE, stdin); 
+    printf("\n"); 
+    sorting_criteria[strlen(sorting_criteria) - 1] = '\0'; 
+
+    if(checkInputedSortingCriteria(library, sorting_criteria))
+    {
+      break; 
+    }
+  } while(1); 
+
+  strcpy(library->sorting_criteria_, sorting_criteria); 
+  printf("Library sorted by %s successfully!\n", sorting_criteria); 
+}
+
+bool checkInputedSortingCriteria(Library* library, char* sorting_criteria)
+{
+  if(strcmp(sorting_criteria, SORT_ISBN) == 0)
+  {
+    executeInputedSortingCriteria(library, ISBN); 
+  }
+  else if(strcmp(sorting_criteria, SORT_TITLE) == 0)
+  {
+    executeInputedSortingCriteria(library, TITLE); 
+  }
+  else if(strcmp(sorting_criteria, SORT_AUTHOR) == 0)
+  {
+    executeInputedSortingCriteria(library, AUTHOR); 
+  }
+  else if(strcmp(sorting_criteria, SORT_YEAR) == 0)
+  {
+    executeInputedSortingCriteria(library, YEAR); 
+  }
+  else if(strcmp(sorting_criteria, SORT_PAGES) == 0)
+  {
+    executeInputedSortingCriteria(library, PAGES); 
+  }
+  else if(strcmp(sorting_criteria, SORT_COLOR) == 0)
+  {
+    executeInputedSortingCriteria(library, COLOR); 
+  }
+  else 
+  {
+    printf("Invalid sorting criteria! Try again!\n\n");
+    return false;
+  }
+  return true; 
+}
+
+void executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria)
+{
+  for(int book_index = 0; book_index < library->amount_of_books_ - 1; book_index++)
+  {
+    if(sorting_criteria == YEAR)
+    {
+      sortIntegers(library, library->library_books_ptr_[book_index]->published_year_, 
+      library->library_books_ptr_[book_index + 1]->published_year_, book_index);
+    }
+    else if(sorting_criteria == PAGES)
+    {
+      sortIntegers(library, library->library_books_ptr_[book_index]->page_count_, 
+      library->library_books_ptr_[book_index + 1]->page_count_, book_index);
+    }
+    else if(sorting_criteria == TITLE)
+    {
+      sortStrings(library, library->library_books_ptr_[book_index]->title_, 
+      library->library_books_ptr_[book_index + 1]->title_, book_index);
+    }
+    else if(sorting_criteria == AUTHOR)
+    {
+      sortStrings(library, library->library_books_ptr_[book_index]->author_, 
+      library->library_books_ptr_[book_index + 1]->author_, book_index);
+    }
+    else if(sorting_criteria == ISBN)
+    {
+      sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
+      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
+    }
+    else if(sorting_criteria == COLOR)
+    {
+      sortStrings(library, library->library_books_ptr_[book_index]->cover_color_, 
+      library->library_books_ptr_[book_index + 1]->cover_color_, book_index);
+    }
+  }
+}
+
+void sortStrings(Library* library, String first_string, String second_string, int book_index)
+{
+  int compare_result = strcmp(first_string, second_string);
+
+  if(compare_result < 0)
+  {
+    return; 
+  }
+  else if(compare_result > 0)
+  {
+    Book* tmp_book_ptr = library->library_books_ptr_[book_index]; 
+    library->library_books_ptr_[book_index] = library->library_books_ptr_[book_index + 1]; 
+    library->library_books_ptr_[book_index]->book_index_++; 
+    library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
+    library->library_books_ptr_[book_index + 1]->book_index_--; 
+  }
+}
+
+void sortIntegers(Library* library, int first_int, int second_int, int book_index)
+{
+  if(first_int < second_int)
+  {
+    return; 
+  }
+  else if(first_int > second_int)
+  {
+    Book* tmp_book_ptr = library->library_books_ptr_[book_index]; 
+    library->library_books_ptr_[book_index] = library->library_books_ptr_[book_index + 1]; 
+    library->library_books_ptr_[book_index]->book_index_++; 
+    library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
+    library->library_books_ptr_[book_index + 1]->book_index_--; 
+  }
+}
 
 
