@@ -1015,14 +1015,14 @@ bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteri
     {
       swapped = sortStrings(library, library->library_books_ptr_[book_index]->cover_color_, 
       library->library_books_ptr_[book_index + 1]->cover_color_, book_index);
-
-      if(swapped == ISBN)
-      {
-        swapped = sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
-      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
-      }
     }
     
+    if(swapped == ISBN)
+    {
+      swapped = sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
+    library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
+    }
+
     if(swapped == SORT_UNCOMPLETE)
     {
       correct_order = false; 
