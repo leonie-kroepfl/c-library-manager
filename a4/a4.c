@@ -102,8 +102,8 @@ void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr);
 void commandSort(Library* library); 
 int checkInputedSortingCriteria(Library* library, char* sorting_criteria); 
 bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria); 
-bool sortStrings(Library* library, String first_string, String second_string, int book_index);
-bool sortIntegers(Library* library, int first_int, int second_int, int book_index);
+int sortStrings(Library* library, String first_string, String second_string, int book_index);
+int sortIntegers(Library* library, int first_int, int second_int, int book_index);
 
 //------------------------------------------------------------------------------
 /// @brief This function handels the whole program.  
@@ -927,6 +927,11 @@ void commandSort(Library* library)
   printf("Library sorted by %s successfully!\n", sorting_criteria); 
 }
 
+//------------------------------------------------------------------------------
+/// @brief This function checks the input from the user for the sorting criteria. 
+/// @param library is the pointer to the library 
+/// @param sorting_criteria is the input with the sorting criteria 
+/// @return returncodes if the sorting was completed, not neccesary or even 
 int checkInputedSortingCriteria(Library* library, char* sorting_criteria)
 {
   bool correct_order = true; 
@@ -968,52 +973,57 @@ int checkInputedSortingCriteria(Library* library, char* sorting_criteria)
   return SORT_UNCOMPLETE; 
 }
 
+//------------------------------------------------------------------------------
+/// @brief This function executes the swaping in the name of the sorting criteria. 
+/// @param library is the pointer to the library 
+/// @param sorting_criteria is the the sorting criteria code from the input 
+/// @return returncodes if the books are in the right order or not  
 bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria)
 {
   bool correct_order = true;
 
   for(int book_index = 0; book_index < library->amount_of_books_ - 1; book_index++)
   {
-    bool swapped = true; 
+    int swapped = 0; 
 
     if(sorting_criteria == YEAR)
     {
-      sortIntegers(library, library->library_books_ptr_[book_index]->published_year_, 
-      library->library_books_ptr_[book_index + 1]->published_year_, book_index) 
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortIntegers(library, library->library_books_ptr_[book_index]->published_year_, 
+      library->library_books_ptr_[book_index + 1]->published_year_, book_index);  
     }
     else if(sorting_criteria == PAGES)
     {
-      sortIntegers(library, library->library_books_ptr_[book_index]->page_count_, 
-      library->library_books_ptr_[book_index + 1]->page_count_, book_index) 
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortIntegers(library, library->library_books_ptr_[book_index]->page_count_, 
+      library->library_books_ptr_[book_index + 1]->page_count_, book_index); 
     }
     else if(sorting_criteria == TITLE)
     {
-      sortStrings(library, library->library_books_ptr_[book_index]->title_, 
-      library->library_books_ptr_[book_index + 1]->title_, book_index) 
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortStrings(library, library->library_books_ptr_[book_index]->title_, 
+      library->library_books_ptr_[book_index + 1]->title_, book_index); 
     }
     else if(sorting_criteria == AUTHOR)
     {
-      sortStrings(library, library->library_books_ptr_[book_index]->author_, 
-      library->library_books_ptr_[book_index + 1]->author_, book_index) 
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortStrings(library, library->library_books_ptr_[book_index]->author_, 
+      library->library_books_ptr_[book_index + 1]->author_, book_index); 
     }
     else if(sorting_criteria == ISBN)
     {
-      sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
-      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index)
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
+      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
     }
     else if(sorting_criteria == COLOR)
     {
-      sortStrings(library, library->library_books_ptr_[book_index]->cover_color_, 
-      library->library_books_ptr_[book_index + 1]->cover_color_, book_index)
-      ? (swapped = false) : (swapped = true); 
+      swapped = sortStrings(library, library->library_books_ptr_[book_index]->cover_color_, 
+      library->library_books_ptr_[book_index + 1]->cover_color_, book_index);
+
+      if(swapped == ISBN)
+      {
+        swapped = sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
+      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
+      }
     }
     
-    if(swapped == true)
+    if(swapped == SORT_UNCOMPLETE)
     {
       correct_order = false; 
     }
@@ -1021,13 +1031,20 @@ bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteri
   return correct_order; 
 }
 
-bool sortStrings(Library* library, String first_string, String second_string, int book_index)
+//------------------------------------------------------------------------------
+/// @brief This function swaps the first book with the second book, if needed. 
+/// @param library is the pointer to the library 
+/// @param first_string is the first string to compare 
+/// @param second_string is the second string to compare
+/// @param book_index is the number of the book which should be swaped with the one afterwards
+/// @return returncodes if the sorting was completed, not neccesary or even 
+int sortStrings(Library* library, String first_string, String second_string, int book_index)
 {
   int compare_result = strcmp(first_string, second_string);
 
   if(compare_result < 0)
   {
-    return true; 
+    return SORT_DONE; 
   }
   else if(compare_result > 0)
   {
@@ -1038,19 +1055,26 @@ bool sortStrings(Library* library, String first_string, String second_string, in
     library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
     library->library_books_ptr_[book_index]->book_index_ = tmp_first_book_index; 
     library->library_books_ptr_[book_index + 1]->book_index_ = tmp_second_book_index; 
-    return false;
+    return SORT_UNCOMPLETE;
   }
   else
   {
-    return true;
+    return ISBN;
   }
 }
 
-bool sortIntegers(Library* library, int first_int, int second_int, int book_index)
+//------------------------------------------------------------------------------
+/// @brief This function swaps the first book with the second book, if needed. 
+/// @param library is the pointer to the library 
+/// @param first_int is the first integer to compare 
+/// @param second_int is the second integer to compare
+/// @param book_index is the number of the book which should be swaped with the one afterwards
+/// @return returncodes if the sorting was completed, not neccesary or even 
+int sortIntegers(Library* library, int first_int, int second_int, int book_index)
 {
   if(first_int < second_int)
   {
-    return true; 
+    return SORT_DONE; 
   }
   else if(first_int > second_int)
   {
@@ -1061,12 +1085,11 @@ bool sortIntegers(Library* library, int first_int, int second_int, int book_inde
     library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
     library->library_books_ptr_[book_index]->book_index_ = tmp_first_book_index; 
     library->library_books_ptr_[book_index + 1]->book_index_ = tmp_second_book_index; 
-
-    return false;
+    return SORT_UNCOMPLETE;
   }
   else
   {
-    return true;
+    return ISBN;
   }
 }
 
