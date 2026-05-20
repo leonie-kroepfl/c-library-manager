@@ -25,6 +25,9 @@
 #define ERROR_MESSAGE_UNKNOWN_COMAND "Unknown command!\n" 
 #define BUFFER_SIZE 256 
 #define BOOK_DETAILS 6
+#define SORT_DONE 1
+#define SORT_UNCOMPLETE -10
+#define INPUT_INVALID -1 
 
 #define PRINT_COMMAND "print"
 #define ADD_COMMAND "add" 
@@ -97,10 +100,10 @@ FILE* openFileToWrite(Library* library);
 void commandSave(Library* library); 
 void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr); 
 void commandSort(Library* library); 
-bool checkInputedSortingCriteria(Library* library, char* sorting_criteria); 
-void executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria); 
-void sortStrings(Library* library, String first_string, String second_string, int book_index);
-void sortIntegers(Library* library, int first_int, int second_int, int book_index);
+int checkInputedSortingCriteria(Library* library, char* sorting_criteria); 
+bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria); 
+bool sortStrings(Library* library, String first_string, String second_string, int book_index);
+bool sortIntegers(Library* library, int first_int, int second_int, int book_index);
 
 //------------------------------------------------------------------------------
 /// @brief This function handels the whole program.  
@@ -890,6 +893,7 @@ void writeLibraryIntoFile(Library* library, FILE* backup_file_ptr)
 void commandSort(Library* library)
 {
   char sorting_criteria[BUFFER_SIZE]; 
+  bool valid_sorting_criteria = false; 
 
   do
   {
@@ -900,119 +904,169 @@ void commandSort(Library* library)
     fgets(sorting_criteria, BUFFER_SIZE, stdin); 
     printf("\n"); 
     sorting_criteria[strlen(sorting_criteria) - 1] = '\0'; 
+    int sorting_result = 0;
 
-    if(checkInputedSortingCriteria(library, sorting_criteria))
+    while(sorting_result != SORT_DONE)
     {
-      break; 
+      sorting_result = checkInputedSortingCriteria(library, sorting_criteria); 
+
+      if(sorting_result == INPUT_INVALID)
+      {
+        break; 
+      }
     }
-  } while(1); 
+    
+    if(sorting_result == SORT_DONE)
+    {
+      valid_sorting_criteria = true;
+    }
+
+  } while(valid_sorting_criteria != true); 
 
   strcpy(library->sorting_criteria_, sorting_criteria); 
   printf("Library sorted by %s successfully!\n", sorting_criteria); 
 }
 
-bool checkInputedSortingCriteria(Library* library, char* sorting_criteria)
+int checkInputedSortingCriteria(Library* library, char* sorting_criteria)
 {
+  bool correct_order = true; 
+
   if(strcmp(sorting_criteria, SORT_ISBN) == 0)
   {
-    executeInputedSortingCriteria(library, ISBN); 
+    executeInputedSortingCriteria(library, ISBN) ? (correct_order = true) : (correct_order = false); 
   }
   else if(strcmp(sorting_criteria, SORT_TITLE) == 0)
   {
-    executeInputedSortingCriteria(library, TITLE); 
+    executeInputedSortingCriteria(library, TITLE) ? (correct_order = true) : (correct_order = false); 
   }
   else if(strcmp(sorting_criteria, SORT_AUTHOR) == 0)
   {
-    executeInputedSortingCriteria(library, AUTHOR); 
+    executeInputedSortingCriteria(library, AUTHOR) ? (correct_order = true) : (correct_order = false); 
   }
   else if(strcmp(sorting_criteria, SORT_YEAR) == 0)
   {
-    executeInputedSortingCriteria(library, YEAR); 
+    executeInputedSortingCriteria(library, YEAR) ? (correct_order = true) : (correct_order = false); 
   }
   else if(strcmp(sorting_criteria, SORT_PAGES) == 0)
   {
-    executeInputedSortingCriteria(library, PAGES); 
+    executeInputedSortingCriteria(library, PAGES) ? (correct_order = true) : (correct_order = false); 
   }
   else if(strcmp(sorting_criteria, SORT_COLOR) == 0)
   {
-    executeInputedSortingCriteria(library, COLOR); 
+    executeInputedSortingCriteria(library, COLOR) ? (correct_order = true) : (correct_order = false); 
   }
   else 
   {
     printf("Invalid sorting criteria! Try again!\n\n");
-    return false;
+    return INPUT_INVALID;
   }
-  return true; 
+
+  if(correct_order == true)
+  {
+    return SORT_DONE;
+  }
+  return SORT_UNCOMPLETE; 
 }
 
-void executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria)
+bool executeInputedSortingCriteria(Library* library, SortingCode sorting_criteria)
 {
+  bool correct_order = true;
+
   for(int book_index = 0; book_index < library->amount_of_books_ - 1; book_index++)
   {
+    bool swapped = true; 
+
     if(sorting_criteria == YEAR)
     {
       sortIntegers(library, library->library_books_ptr_[book_index]->published_year_, 
-      library->library_books_ptr_[book_index + 1]->published_year_, book_index);
+      library->library_books_ptr_[book_index + 1]->published_year_, book_index) 
+      ? (swapped = false) : (swapped = true); 
     }
     else if(sorting_criteria == PAGES)
     {
       sortIntegers(library, library->library_books_ptr_[book_index]->page_count_, 
-      library->library_books_ptr_[book_index + 1]->page_count_, book_index);
+      library->library_books_ptr_[book_index + 1]->page_count_, book_index) 
+      ? (swapped = false) : (swapped = true); 
     }
     else if(sorting_criteria == TITLE)
     {
       sortStrings(library, library->library_books_ptr_[book_index]->title_, 
-      library->library_books_ptr_[book_index + 1]->title_, book_index);
+      library->library_books_ptr_[book_index + 1]->title_, book_index) 
+      ? (swapped = false) : (swapped = true); 
     }
     else if(sorting_criteria == AUTHOR)
     {
       sortStrings(library, library->library_books_ptr_[book_index]->author_, 
-      library->library_books_ptr_[book_index + 1]->author_, book_index);
+      library->library_books_ptr_[book_index + 1]->author_, book_index) 
+      ? (swapped = false) : (swapped = true); 
     }
     else if(sorting_criteria == ISBN)
     {
       sortStrings(library, library->library_books_ptr_[book_index]->ISBN_number_, 
-      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index);
+      library->library_books_ptr_[book_index + 1]->ISBN_number_, book_index)
+      ? (swapped = false) : (swapped = true); 
     }
     else if(sorting_criteria == COLOR)
     {
       sortStrings(library, library->library_books_ptr_[book_index]->cover_color_, 
-      library->library_books_ptr_[book_index + 1]->cover_color_, book_index);
+      library->library_books_ptr_[book_index + 1]->cover_color_, book_index)
+      ? (swapped = false) : (swapped = true); 
+    }
+    
+    if(swapped == true)
+    {
+      correct_order = false; 
     }
   }
+  return correct_order; 
 }
 
-void sortStrings(Library* library, String first_string, String second_string, int book_index)
+bool sortStrings(Library* library, String first_string, String second_string, int book_index)
 {
   int compare_result = strcmp(first_string, second_string);
 
   if(compare_result < 0)
   {
-    return; 
+    return true; 
   }
   else if(compare_result > 0)
   {
     Book* tmp_book_ptr = library->library_books_ptr_[book_index]; 
+    int tmp_first_book_index = library->library_books_ptr_[book_index]->book_index_; 
+    int tmp_second_book_index = library->library_books_ptr_[book_index + 1]->book_index_; 
     library->library_books_ptr_[book_index] = library->library_books_ptr_[book_index + 1]; 
-    library->library_books_ptr_[book_index]->book_index_++; 
     library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
-    library->library_books_ptr_[book_index + 1]->book_index_--; 
+    library->library_books_ptr_[book_index]->book_index_ = tmp_first_book_index; 
+    library->library_books_ptr_[book_index + 1]->book_index_ = tmp_second_book_index; 
+    return false;
+  }
+  else
+  {
+    return true;
   }
 }
 
-void sortIntegers(Library* library, int first_int, int second_int, int book_index)
+bool sortIntegers(Library* library, int first_int, int second_int, int book_index)
 {
   if(first_int < second_int)
   {
-    return; 
+    return true; 
   }
   else if(first_int > second_int)
   {
     Book* tmp_book_ptr = library->library_books_ptr_[book_index]; 
+    int tmp_first_book_index = library->library_books_ptr_[book_index]->book_index_; 
+    int tmp_second_book_index = library->library_books_ptr_[book_index + 1]->book_index_; 
     library->library_books_ptr_[book_index] = library->library_books_ptr_[book_index + 1]; 
-    library->library_books_ptr_[book_index]->book_index_++; 
     library->library_books_ptr_[book_index + 1] = tmp_book_ptr; 
-    library->library_books_ptr_[book_index + 1]->book_index_--; 
+    library->library_books_ptr_[book_index]->book_index_ = tmp_first_book_index; 
+    library->library_books_ptr_[book_index + 1]->book_index_ = tmp_second_book_index; 
+
+    return false;
+  }
+  else
+  {
+    return true;
   }
 }
 
